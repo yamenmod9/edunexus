@@ -168,58 +168,74 @@ def seed_questions():
     skipped = 0
     errors = []
 
-    for q in questions_data:
-        try:
-            # Map difficulty
-            diff_val = q.get("difficulty", "medium").lower()
+    try:
+        for q in questions_data:
             try:
-                difficulty = DifficultyEnum(diff_val)
-            except ValueError:
-                difficulty = DifficultyEnum.MEDIUM
+                # Map difficulty
+                diff_val = q.get("difficulty", "medium").lower()
+                try:
+                    difficulty = DifficultyEnum(diff_val)
+                except ValueError:
+                    difficulty = DifficultyEnum.MEDIUM
 
-            # Map correct answer
-            ca_val = q.get("correct_answer", "").upper()
-            try:
-                correct_answer = CorrectAnswerEnum(ca_val)
-            except ValueError:
+                # Map correct answer
+                ca_val = q.get("correct_answer", "").upper()
+                try:
+                    correct_answer = CorrectAnswerEnum(ca_val)
+                except ValueError:
+                    skipped += 1
+                    continue
+
+                # Map section
+                sec_val = q.get("section", "english").lower()
+                try:
+                    section = SectionEnum(sec_val)
+                except ValueError:
+                    section = SectionEnum.ENGLISH
+
+                # Serialize choices to JSON string for compatibility
+                import json as _json
+                choices_raw = q.get("choices", [])
+
+                question = Question(
+                    section=section,
+                    category=q.get("category", ""),
+                    subcategory=q.get("subcategory", ""),
+                    difficulty=difficulty,
+                    question_text=q.get("question_text", ""),
+                    choices=choices_raw,
+                    correct_answer=correct_answer,
+                    explanation=q.get("explanation"),
+                    passage_text=q.get("passage_text"),
+                    is_bluebook=q.get("is_bluebook", True),
+                    source_attribution=q.get(
+                        "source_attribution",
+                        "College Board SAT Question Bank"
+                    ),
+                )
+                db.add(question)
+                inserted += 1
+
+                # Commit in batches
+                if inserted % 100 == 0:
+                    db.commit()
+
+            except Exception as e:
+                import traceback
+                errors.append(f"Q#{inserted}: {str(e)} | {traceback.format_exc()[-200:]}")
+                db.rollback()
                 skipped += 1
-                continue
 
-            # Map section
-            sec_val = q.get("section", "english").lower()
-            try:
-                section = SectionEnum(sec_val)
-            except ValueError:
-                section = SectionEnum.ENGLISH
+        db.commit()
 
-            question = Question(
-                section=section,
-                category=q.get("category", ""),
-                subcategory=q.get("subcategory", ""),
-                difficulty=difficulty,
-                question_text=q.get("question_text", ""),
-                choices=q.get("choices", []),
-                correct_answer=correct_answer,
-                explanation=q.get("explanation"),
-                passage_text=q.get("passage_text"),
-                is_bluebook=q.get("is_bluebook", True),
-                source_attribution=q.get(
-                    "source_attribution",
-                    "College Board SAT Question Bank"
-                ),
-            )
-            db.add(question)
-            inserted += 1
-
-            # Commit in batches
-            if inserted % 100 == 0:
-                db.commit()
-
-        except Exception as e:
-            errors.append(str(e))
-            skipped += 1
-
-    db.commit()
+    except Exception as e:
+        import traceback
+        db.rollback()
+        return jsonify({
+            "detail": f"Seed failed: {str(e)}",
+            "traceback": traceback.format_exc()[-500:],
+            "inserted_before_error": inserted,
+        }), 500
 
     return jsonify({
         "inserted": inserted,
