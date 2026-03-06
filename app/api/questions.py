@@ -197,10 +197,15 @@ def seed_questions():
                 import json as _json
                 choices_raw = q.get("choices", [])
 
+                cat = q.get("category", "")
+                subcat = q.get("subcategory", "")
+
                 question = Question(
                     section=section,
-                    category=q.get("category", ""),
-                    subcategory=q.get("subcategory", ""),
+                    topic=cat,          # Legacy field – mirror category
+                    subtopic=subcat,    # Legacy field – mirror subcategory
+                    category=cat,
+                    subcategory=subcat,
                     difficulty=difficulty,
                     question_text=q.get("question_text", ""),
                     choices=choices_raw,
