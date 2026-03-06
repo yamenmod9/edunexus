@@ -39,8 +39,9 @@ def get_questions():
     subcategory = request.args.get('subcategory')
     difficulty = request.args.get('difficulty')
     bluebook_only = request.args.get('bluebook_only', 'false').lower() == 'true'
+    exclude_bluebook = request.args.get('exclude_bluebook', 'false').lower() == 'true'
     shuffle = request.args.get('shuffle', 'false').lower() == 'true'
-    limit = min(int(request.args.get('limit', 10)), 100)
+    limit = min(int(request.args.get('limit', 50)), 500)
     skip = max(int(request.args.get('skip', 0)), 0)
 
     query = db.query(Question)
@@ -60,6 +61,8 @@ def get_questions():
         query = query.filter(Question.difficulty == difficulty)
     if bluebook_only:
         query = query.filter(Question.is_bluebook == True)
+    elif exclude_bluebook:
+        query = query.filter(Question.is_bluebook == False)
 
     # Get questions with pagination
     questions = query.offset(skip).limit(limit).all()
@@ -93,6 +96,7 @@ def get_questions_count():
     subcategory = request.args.get('subcategory')
     difficulty = request.args.get('difficulty')
     bluebook_only = request.args.get('bluebook_only', 'false').lower() == 'true'
+    exclude_bluebook = request.args.get('exclude_bluebook', 'false').lower() == 'true'
 
     query = db.query(Question)
 
@@ -106,6 +110,8 @@ def get_questions_count():
         query = query.filter(Question.difficulty == difficulty)
     if bluebook_only:
         query = query.filter(Question.is_bluebook == True)
+    elif exclude_bluebook:
+        query = query.filter(Question.is_bluebook == False)
 
     count = query.count()
     return jsonify({"count": count}), 200
